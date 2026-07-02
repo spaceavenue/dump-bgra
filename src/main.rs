@@ -1,7 +1,4 @@
-use fast_image_resize::{
-    self as fir, FilterType, PixelType, ResizeAlg, ResizeOptions, Resizer,
-    images::{self, Image},
-};
+use fast_image_resize::{FilterType, PixelType, ResizeAlg, ResizeOptions, Resizer, images::Image};
 use image::{DynamicImage, ImageError, ImageReader};
 use memmap2::{Mmap, MmapMut};
 use rayon::{
@@ -47,11 +44,11 @@ fn resizer_init(
     in_image: DynamicImage,
     scaled_dims: (usize, usize),
 ) -> (Resizer, ResizeOptions, Image<'static>, Image<'static>) {
-    let resizer = fir::Resizer::new();
+    let resizer = Resizer::new();
 
     let options = ResizeOptions::new().resize_alg(ResizeAlg::Convolution(FilterType::Bilinear));
 
-    let Ok(in_view) = images::Image::from_vec_u8(
+    let Ok(in_view) = Image::from_vec_u8(
         in_image.width(),
         in_image.height(),
         in_image.into_rgba8().into_raw(),
@@ -60,7 +57,7 @@ fn resizer_init(
         eprintln!("Failed to create input image view.");
         std::process::exit(1)
     };
-    let out_view = images::Image::new(scaled_dims.0 as u32, scaled_dims.1 as u32, PixelType::U8x4);
+    let out_view = Image::new(scaled_dims.0 as u32, scaled_dims.1 as u32, PixelType::U8x4);
     (resizer, options, in_view, out_view)
 }
 
