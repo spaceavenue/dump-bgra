@@ -16,5 +16,4 @@ opt-level = 3
 lto = "thin"
 codegen-units = 1
 strip = true
-debuginfo = "none"
 panic = "immediate-abort"
