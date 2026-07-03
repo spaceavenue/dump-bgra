@@ -11,14 +11,31 @@ use std::{
     io::Cursor,
 };
 
-fn get_dimensions(in_w: u32, in_h: u32, out_w: u32, out_h: u32, mode: &str) -> (usize, usize) {
+enum Mode {
+    Fit,
+    Fill,
+}
+impl Mode {
+    fn parse(mode: &str) -> Option<Self> {
+        match mode {
+            "fit" => Some(Self::Fit),
+            "fill" => Some(Self::Fill),
+            _ => None,
+        }
+    }
+}
+fn dies(context: &str, err: impl std::fmt::Display) -> ! {
+    eprintln!("{context}: {err}");
+    std::process::exit(1)
+}
+
+fn get_dimensions(in_w: u32, in_h: u32, out_w: u32, out_h: u32, mode: &Mode) -> (usize, usize) {
     let w_ratio = out_w as f64 / in_w as f64;
     let h_ratio = out_h as f64 / in_h as f64;
 
     let scale = match mode {
-        "fill" => w_ratio.max(h_ratio),
-        "fit" => w_ratio.min(h_ratio),
-        _ => 1.0,
+        Mode::Fill => w_ratio.max(h_ratio),
+        Mode::Fit => w_ratio.min(h_ratio),
     };
     (
         (in_w as f64 * scale).round() as usize,
@@ -48,15 +65,14 @@ fn resizer_init(
 
     let options = ResizeOptions::new().resize_alg(ResizeAlg::Convolution(FilterType::Bilinear));
 
-    let Ok(in_view) = Image::from_vec_u8(
+    let in_view = Image::from_vec_u8(
         in_image.width(),
         in_image.height(),
         in_image.into_rgba8().into_raw(),
         PixelType::U8x4,
-    ) else {
-        eprintln!("Failed to create input image view.");
-        std::process::exit(1)
-    };
+    )
+    .unwrap_or_else(|e| dies("Failed to create input image view", e));
+
     let out_view = Image::new(scaled_dims.0 as u32, scaled_dims.1 as u32, PixelType::U8x4);
     (resizer, options, in_view, out_view)
 }
@@ -131,37 +147,31 @@ fn main() {
         std::process::exit(1)
     }
 
-    let Ok(width) = args[1].parse::<u32>() else {
-        eprintln!("Failed to parse width.");
-        std::process::exit(1)
-    };
-    let Ok(height) = args[2].parse::<u32>() else {
-        eprintln!("Failed to parse height.");
-        std::process::exit(1)
-    };
-    let mode = args[3].as_str();
+    let width = args[1]
+        .parse::<u32>()
+        .unwrap_or_else(|e| dies("Failed to parse width", e));
+    let height = args[2]
+        .parse::<u32>()
+        .unwrap_or_else(|e| dies("Failed to parse height", e));
+    if width == 0 || height == 0 {
+        dies("Invalid dimensions", "both dimensions must be non-zero")
+    }
+
+    let mode = Mode::parse(args[3].as_str())
+        .unwrap_or_else(|| dies("Invalid mode", "must be fill or fit"));
     let in_path = &args[4];
     let out_path = &args[5];
 
     let in_mmap = unsafe {
-        Mmap::map(&File::open(in_path).unwrap_or_else(|e| {
-            eprintln!("Failed to open input file: {e}");
-            std::process::exit(1)
-        }))
-        .unwrap_or_else(|e| {
-            eprintln!("Failed to mmap input file: {e}");
-            std::process::exit(1)
-        })
+        Mmap::map(&File::open(in_path).unwrap_or_else(|e| dies("Failed to open input file", e)))
+            .unwrap_or_else(|e| dies("Failed to mmap input file", e))
     };
 
     let in_image = ImageReader::new(Cursor::new(in_mmap))
         .with_guessed_format()
         .map_err(ImageError::from)
         .and_then(|i| i.decode())
-        .unwrap_or_else(|e| {
-            eprintln!("Failed to decode image: {e}");
-            std::process::exit(1)
-        });
+        .unwrap_or_else(|e| dies("Failed to decode image", e));
 
     let out_file = OpenOptions::new()
         .read(true)
@@ -169,32 +179,23 @@ fn main() {
         .create(true)
         .truncate(true)
         .open(out_path)
-        .unwrap_or_else(|e| {
-            eprintln!("Failed to open output file: {e}");
-            std::process::exit(1)
-        });
+        .unwrap_or_else(|e| dies("Failed to open output file", e));
     out_file
         .set_len((width * height * 4) as u64)
-        .unwrap_or_else(|e| {
-            eprintln!("Failed to set output file len: {e}");
-            std::process::exit(1)
-        });
+        .unwrap_or_else(|e| dies("Failed to set output file len", e));
     let mut out_mmap = unsafe {
         Mmap::map(&out_file)
             .and_then(|m| m.make_mut())
-            .unwrap_or_else(|e| {
-                eprintln!("Failed to mmap output file: {e}");
-                std::process::exit(1)
-            })
+            .unwrap_or_else(|e| dies("Failed to mmap output file", e))
     };
 
-    let scaled_dims = get_dimensions(in_image.width(), in_image.height(), width, height, mode);
+    let scaled_dims = get_dimensions(in_image.width(), in_image.height(), width, height, &mode);
     let (mut resizer, options, in_view, mut out_view) = resizer_init(in_image, scaled_dims);
     let _ = resizer.resize(&in_view, &mut out_view, Some(&options));
 
     match mode {
         // zoom into center and crop
-        "fill" => {
+        Mode::Fill => {
             resize_fill(
                 &mut out_mmap,
                 out_view.buffer(),
@@ -204,7 +205,7 @@ fn main() {
             );
         }
         // fit image inside output dimensions, using letterboxing. bit more complicated to do faster
-        "fit" => {
+        Mode::Fit => {
             resize_fit(
                 &mut out_mmap,
                 out_view.buffer(),
@@ -213,14 +214,9 @@ fn main() {
                 height as usize,
             );
         }
-        _ => {
-            eprintln!("Invalid mode");
-            std::process::exit(1)
-        }
     };
 
-    out_mmap.flush_async().unwrap_or_else(|e| {
-        eprintln!("Failed to flush output mmap to disk: {e}");
-        std::process::exit(1)
-    });
+    out_mmap
+        .flush_async()
+        .unwrap_or_else(|e| dies("Failed to flush output mmap to disk", e));
 }
