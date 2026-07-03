@@ -232,7 +232,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "dump-rgba"
+name = "dump-bgra"
 version = "0.1.0"
 dependencies = [
  "fast_image_resize",
