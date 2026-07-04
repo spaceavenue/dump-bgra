@@ -7,7 +7,7 @@ use fast_image_resize::{FilterType, PixelType, ResizeAlg, ResizeOptions, Resizer
 use image::{ImageError, ImageReader};
 use memmap2::{Mmap, MmapMut};
 use rayon::iter::{IndexedParallelIterator, ParallelIterator};
-use rayon::slice::{ParallelSlice, ParallelSliceMut};
+use rayon::slice::ParallelSliceMut;
 
 enum Mode {
     Fit,
@@ -89,10 +89,12 @@ fn get_resized_view(
 }
 
 fn copy_and_swap_channels(rgba_buf: &[u8], bgra_buf: &mut [u8]) {
-    // copies and swaps red and blue channels, in parallel
+    // copies and swaps red and blue channels
     bgra_buf
-        .par_chunks_mut(4)
-        .zip(rgba_buf.par_chunks(4))
+        .as_chunks_mut::<4>()
+        .0
+        .iter_mut()
+        .zip(rgba_buf.as_chunks::<4>().0.iter())
         .for_each(|(bgra, rgba)| {
             bgra[0] = rgba[2];
             bgra[1] = rgba[1];
