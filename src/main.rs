@@ -203,9 +203,7 @@ fn get_out_mmap(out_path: &String, out_dims: (usize, usize)) -> MmapMut {
         .unwrap_or_else(|e| dies("Failed to set output file len", e));
     // make a mutable mmap. will be passed as the output buffer, the flushed to disk later
     let out_mmap = unsafe {
-        Mmap::map(&out_file)
-            .and_then(|m| m.make_mut())
-            .unwrap_or_else(|e| dies("Failed to mmap output file", e))
+        MmapMut::map_mut(&out_file).unwrap_or_else(|e| dies("Failed to mmap output file", e))
     };
     out_mmap
 }
