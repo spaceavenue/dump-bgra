@@ -10,7 +10,7 @@ fast_image_resize = {version = "6.0.0", default-features = false, features = ["r
 image = {version = "0.25.10"}
 memmap2 = {version = "0.9.11", default-features = false}
 rayon = {version = "1.12.0", default-features = false}
-# libqoz = {package = "qoz", path = "/home/sanya/projects/qoz/qoz"}
+libqoz = {package = "qoz", path = "/home/sanya/projects/qoz/qoz"}
 
 [profile.release]
 opt-level = 3

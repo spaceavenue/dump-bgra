@@ -1,5 +1,6 @@
 mod cli;
 mod error;
+mod qoz;
 mod resize;
 mod util;
 
