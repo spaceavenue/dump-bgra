@@ -67,12 +67,10 @@ fn get_resized_view(
         in_image,
         PixelType::U8x4,
     )?;
-    // .unwrap_or_else(|e| dies("Failed to create input image view", e));
 
     let mut out_view = Image::new(scaled_dims.0 as u32, scaled_dims.1 as u32, PixelType::U8x4);
 
     resizer.resize(&in_view, &mut out_view, Some(&options))?;
-    // .unwrap_or_else(|e| dies("Failed to create output view", e));
     Ok(out_view.into_vec())
 }
 

@@ -1,5 +1,5 @@
-[unstable]
-build-std = ["std", "panic_abort"]
+# [unstable]
+# build-std = ["std", "panic_abort"]
 
-[target.x86_64-unknown-linux-gnu]
-rustflags = ["-C", "target-cpu=native", "-Z", "location-detail=none", "-Z", "fmt_debug=none"]
+# [target.x86_64-unknown-linux-gnu]
+# rustflags = ["-C", "target-cpu=native", "-Z", "location-detail=none"]

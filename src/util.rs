@@ -11,7 +11,6 @@ use crate::qoz::{self, is_qoz};
 pub fn get_input_image(path: impl AsRef<Path>) -> Result<(Vec<u8>, (usize, usize)), AppError> {
     let in_mmap = unsafe { Mmap::map(&File::open(path)?)? };
     if is_qoz(&in_mmap) {
-        println!("here");
         let (header, data) = qoz::decode(&in_mmap)?;
         return Ok((data, (header.width as usize, header.height as usize)));
     }
@@ -22,7 +21,10 @@ pub fn get_input_image(path: impl AsRef<Path>) -> Result<(Vec<u8>, (usize, usize
     Ok((image.into_rgba8().into_raw(), image_dims))
 }
 
-pub fn get_out_mmap(out_path: &String, out_dims: (usize, usize)) -> Result<MmapMut, AppError> {
+pub fn get_out_mmap(
+    out_path: &String,
+    (width, height): (usize, usize),
+) -> Result<MmapMut, AppError> {
     // create output file with the given read+write+create+truncate options. allows overwriting
     // files that already exist or creating ones that dont.
     let out_file = OpenOptions::new()
@@ -32,7 +34,7 @@ pub fn get_out_mmap(out_path: &String, out_dims: (usize, usize)) -> Result<MmapM
         .truncate(true)
         .open(out_path)?;
     // set length to given dimensions
-    out_file.set_len((out_dims.0 * out_dims.1 * 4) as u64)?;
+    out_file.set_len((width * height * 4) as u64)?;
     // make a mutable mmap. will be passed as the output buffer, the flushed to disk later
     let out_mmap = unsafe { MmapMut::map_mut(&out_file)? };
     Ok(out_mmap)

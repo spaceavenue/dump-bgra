@@ -35,7 +35,7 @@ fn run() -> Result<(), AppError> {
         return Ok(());
     }
 
-    // match on given mode
+    // get output mmap and fill it
     let mut out_mmap = get_out_mmap(&args.out_path, final_dims)?;
     fill_out_buffer(&mut out_mmap);
 
