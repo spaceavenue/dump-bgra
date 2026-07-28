@@ -16,27 +16,22 @@ fn run() -> Result<(), AppError> {
 
     let (resize_buf, resize_dims) = resize_image(in_image, img_dims, args.out_dims, &args.mode)?;
 
-    let final_dims = match args.mode {
-        Mode::Normal => resize_dims,
-        Mode::Fit | Mode::Fill => args.out_dims,
-    };
-
     let fill_out_buffer = |out_buf: &mut [u8]| match args.mode {
-        Mode::Normal | Mode::Fill => resize_fill(&resize_buf, out_buf, resize_dims, final_dims),
-        Mode::Fit => resize_fit(&resize_buf, out_buf, resize_dims, final_dims),
+        Mode::Fill => resize_fill(&resize_buf, out_buf, resize_dims, args.out_dims),
+        Mode::Fit => resize_fit(&resize_buf, out_buf, resize_dims, args.out_dims),
     };
 
     // stdout is a pipe, not a file, so it can't be mmap'd. fill a vec instead and write that to
     // stdout
     if args.out_to_stdout() {
-        let mut out_buf = vec![0u8; final_dims.0 * final_dims.1 * 4];
+        let mut out_buf = vec![0u8; args.out_dims.0 * args.out_dims.1 * 4];
         fill_out_buffer(&mut out_buf);
         write_to_stdout(&out_buf)?;
         return Ok(());
     }
 
     // get output mmap and fill it
-    let mut out_mmap = get_out_mmap(&args.out_path, final_dims)?;
+    let mut out_mmap = get_out_mmap(&args.out_path, args.out_dims)?;
     fill_out_buffer(&mut out_mmap);
 
     // flush buffer to disk

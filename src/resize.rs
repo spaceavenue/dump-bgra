@@ -8,14 +8,14 @@ use crate::error::AppError;
 pub enum Mode {
     Fit,
     Fill,
-    Normal,
+
 }
 impl Mode {
     pub fn parse(mode: &str) -> Option<Self> {
         match mode {
             "fit" => Some(Self::Fit),
             "fill" => Some(Self::Fill),
-            "norm" => Some(Self::Normal),
+
             _ => None,
         }
     }
@@ -32,7 +32,7 @@ fn get_scaled_dimensions(
     let scale = match mode {
         Mode::Fill => w_ratio.max(h_ratio),
         Mode::Fit => w_ratio.min(h_ratio),
-        Mode::Normal => 1.0,
+
     };
 
     let scaled_w = (in_dims.0 as f64 * scale).round() as usize;
@@ -41,14 +41,14 @@ fn get_scaled_dimensions(
     // if .round() is off by a pixel, usize can underflow elsewhere. so we're clamping here
     match mode {
         Mode::Fill => (
-            scaled_w.max(out_dims.0 as usize),
-            scaled_h.max(out_dims.1 as usize),
+            scaled_w.max(out_dims.0),
+            scaled_h.max(out_dims.1),
         ),
         Mode::Fit => (
-            scaled_w.min(out_dims.0 as usize),
-            scaled_h.min(out_dims.1 as usize),
+            scaled_w.min(out_dims.0),
+            scaled_h.min(out_dims.1),
         ),
-        Mode::Normal => (scaled_w, scaled_h),
+
     }
 }
 
@@ -97,7 +97,7 @@ pub fn resize_image(
 ) -> Result<(Vec<u8>, (usize, usize)), AppError> {
     let scaled_dims = get_scaled_dimensions(img_dims, out_dims, mode);
     match mode {
-        Mode::Normal => Ok((in_image, scaled_dims)),
+
         Mode::Fill | Mode::Fit => Ok((
             get_resized_view(in_image, img_dims, scaled_dims)?,
             scaled_dims,
