@@ -3,7 +3,6 @@ use std::{fmt, io};
 
 use fast_image_resize::{ImageBufferError, ResizeError};
 use image::ImageError;
-use libqoz::QozError;
 
 #[derive(Debug)]
 pub enum AppError {
@@ -41,8 +40,8 @@ impl From<ImageError> for AppError {
         Self::ImageDecode("Image decode failed", err.to_string())
     }
 }
-impl From<QozError> for AppError {
-    fn from(err: QozError) -> Self {
+impl From<qoz::QozError> for AppError {
+    fn from(err: qoz::QozError) -> Self {
         Self::ImageDecode("Image decode failed", err.to_string())
     }
 }

@@ -6,12 +6,11 @@ use image::ImageReader;
 use memmap2::{Mmap, MmapMut};
 
 use crate::error::AppError;
-use crate::qoz::{self, is_qoz};
 
 pub fn get_input_image(path: impl AsRef<Path>) -> Result<(Vec<u8>, (usize, usize)), AppError> {
     let in_mmap = unsafe { Mmap::map(&File::open(path)?)? };
-    if is_qoz(&in_mmap) {
-        let (header, data) = qoz::decode(&in_mmap)?;
+    if crate::qoz::is_qoz(&in_mmap) {
+        let (header, data) = crate::qoz::decode(&in_mmap)?;
         return Ok((data, (header.width as usize, header.height as usize)));
     }
     let image = ImageReader::new(Cursor::new(in_mmap))
