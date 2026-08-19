@@ -1,4 +1,4 @@
-# cargo-features = ["panic-immediate-abort"]
+cargo-features = ["panic-immediate-abort"]
 
 [package]
 name = "dump-bgra"
@@ -7,16 +7,19 @@ edition = "2024"
 
 [dependencies]
 fast_image_resize = { version = "6.0.0", default-features = false, features = ["rayon"] }
-image = { version = "0.25.10", default-features = false, features = ["avif-native", "png", "jpeg", "webp", "gif", "bmp", "tiff", "tga", "dds", "exr", "hdr", "ico", "pnm", "qoi", "rayon"] }
-qoz = { git = "https://github.com/spaceavenue/qoz.git" }
 memmap2 = { version = "0.9.11", default-features = false }
 rayon = { version = "1.12.0", default-features = false }
-zstd-sys = { version = "2.0", features = ["pkg-config"] }
+qoz = { git = "https://github.com/spaceavenue/qoz.git" }
+
+[dependencies.image]
+version = "0.25.10"
+default-features = false
+features = ["png", "jpeg", "webp", "qoi", "rayon"]
 
 [profile.release]
 opt-level = 3
 lto = "fat"
 codegen-units = 1
 strip = true
-# panic = "immediate-abort"
-panic = "abort"
+panic = "immediate-abort"
+
