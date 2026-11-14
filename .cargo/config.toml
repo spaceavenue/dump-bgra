@@ -1,5 +1,0 @@
-[build]
-rustflags = ["-C", "target-cpu=native", "-Z", "location-detail=none", "-Z", "fmt-debug=none"]
-
-[unstable]
-build-std = ["std", "panic_abort"]

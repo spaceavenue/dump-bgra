@@ -3,19 +3,15 @@ use fast_image_resize::{FilterType, PixelType, ResizeAlg, ResizeOptions, Resizer
 use rayon::iter::{IndexedParallelIterator, ParallelIterator};
 use rayon::slice::ParallelSliceMut;
 
-use crate::error::AppError;
-
 pub enum Mode {
     Fit,
     Fill,
-
 }
 impl Mode {
     pub fn parse(mode: &str) -> Option<Self> {
         match mode {
             "fit" => Some(Self::Fit),
             "fill" => Some(Self::Fill),
-
             _ => None,
         }
     }
@@ -32,7 +28,6 @@ fn get_scaled_dimensions(
     let scale = match mode {
         Mode::Fill => w_ratio.max(h_ratio),
         Mode::Fit => w_ratio.min(h_ratio),
-
     };
 
     let scaled_w = (in_dims.0 as f64 * scale).round() as usize;
@@ -40,15 +35,8 @@ fn get_scaled_dimensions(
 
     // if .round() is off by a pixel, usize can underflow elsewhere. so we're clamping here
     match mode {
-        Mode::Fill => (
-            scaled_w.max(out_dims.0),
-            scaled_h.max(out_dims.1),
-        ),
-        Mode::Fit => (
-            scaled_w.min(out_dims.0),
-            scaled_h.min(out_dims.1),
-        ),
-
+        Mode::Fill => (scaled_w.max(out_dims.0), scaled_h.max(out_dims.1)),
+        Mode::Fit => (scaled_w.min(out_dims.0), scaled_h.min(out_dims.1)),
     }
 }
 
@@ -57,7 +45,7 @@ fn get_resized_view(
     in_image: Vec<u8>,
     in_dims: (usize, usize),
     scaled_dims: (usize, usize),
-) -> Result<Vec<u8>, AppError> {
+) -> anyhow::Result<Vec<u8>> {
     let mut resizer = Resizer::new();
     let options = ResizeOptions::new().resize_alg(ResizeAlg::Convolution(FilterType::Bilinear));
 
@@ -94,10 +82,13 @@ pub fn resize_image(
     img_dims: (usize, usize),
     out_dims: (usize, usize),
     mode: &Mode,
-) -> Result<(Vec<u8>, (usize, usize)), AppError> {
+) -> anyhow::Result<(Vec<u8>, (usize, usize))> {
     let scaled_dims = get_scaled_dimensions(img_dims, out_dims, mode);
+    // already at the target size
+    if scaled_dims == img_dims {
+        return Ok((in_image, scaled_dims));
+    }
     match mode {
-
         Mode::Fill | Mode::Fit => Ok((
             get_resized_view(in_image, img_dims, scaled_dims)?,
             scaled_dims,

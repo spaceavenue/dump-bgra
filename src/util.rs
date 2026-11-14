@@ -4,13 +4,41 @@ use std::path::Path;
 
 use image::ImageReader;
 use memmap2::{Mmap, MmapMut};
+use rayon::iter::{IndexedParallelIterator, ParallelIterator};
+use rayon::slice::{ParallelSlice, ParallelSliceMut};
 
-use crate::error::AppError;
+pub fn decode(input: &[u8]) -> anyhow::Result<(qoz::Header, Vec<u8>)> {
+    // check if theres 3 channels. if there are, we have to convert to an RGBA buffer first
+    // since that's what the rest of the program expects.
+    let header = qoz::read_header(input)?;
+    let pixels = if header.channels != qoz::Channels::Rgba {
+        let (_, rgb) = qoz::decode(input)?;
+        let mut rgba = vec![0u8; (header.width * header.height * 4) as usize];
+        rgb.par_chunks(3 * header.width as usize)
+            .zip(rgba.par_chunks_mut(4 * header.width as usize))
+            .for_each(|(src_row, dst_row)| {
+                dst_row
+                    .chunks_exact_mut(4)
+                    .zip(src_row.chunks_exact(3))
+                    .for_each(|(d, s)| {
+                        d[0] = s[0];
+                        d[1] = s[1];
+                        d[2] = s[2];
+                        d[3] = 255u8;
+                    });
+            });
+        rgba
+    } else {
+        let (_, rgba) = qoz::decode(input)?;
+        rgba
+    };
+    Ok((header, pixels))
+}
 
-pub fn get_input_image(path: impl AsRef<Path>) -> Result<(Vec<u8>, (usize, usize)), AppError> {
+pub fn get_input_image(path: impl AsRef<Path>) -> anyhow::Result<(Vec<u8>, (usize, usize))> {
     let in_mmap = unsafe { Mmap::map(&File::open(path)?)? };
-    if crate::qoz::is_qoz(&in_mmap) {
-        let (header, data) = crate::qoz::decode(&in_mmap)?;
+    if (&in_mmap).starts_with(b"QOZ1") {
+        let (header, data) = decode(&in_mmap)?;
         return Ok((data, (header.width as usize, header.height as usize)));
     }
     let image = ImageReader::new(Cursor::new(in_mmap))
@@ -20,10 +48,7 @@ pub fn get_input_image(path: impl AsRef<Path>) -> Result<(Vec<u8>, (usize, usize
     Ok((image.into_rgba8().into_raw(), image_dims))
 }
 
-pub fn get_out_mmap(
-    out_path: &String,
-    (width, height): (usize, usize),
-) -> Result<MmapMut, AppError> {
+pub fn get_out_mmap(out_path: &String, (width, height): (usize, usize)) -> anyhow::Result<MmapMut> {
     // create output file with the given read+write+create+truncate options. allows overwriting
     // files that already exist or creating ones that dont.
     let out_file = OpenOptions::new()
@@ -39,8 +64,14 @@ pub fn get_out_mmap(
     Ok(out_mmap)
 }
 
-pub fn write_to_stdout(out_buf: &[u8]) -> Result<(), AppError> {
+pub fn write_to_stdout(out_buf: &[u8]) -> anyhow::Result<()> {
     let mut lock = stdout().lock();
     lock.write_all(out_buf).and_then(|()| lock.flush())?;
     Ok(())
+}
+
+pub unsafe fn uninit_vec(len: usize) -> Vec<u8> {
+    let mut v = Vec::with_capacity(len);
+    unsafe { v.set_len(len) };
+    v
 }
