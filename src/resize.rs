@@ -7,6 +7,7 @@ pub enum Mode {
     Fit,
     Fill,
 }
+
 impl Mode {
     pub fn parse(mode: &str) -> Option<Self> {
         match mode {

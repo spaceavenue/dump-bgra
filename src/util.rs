@@ -1,5 +1,5 @@
 use std::fs::{File, OpenOptions};
-use std::io::{Cursor, Write, stdout};
+use std::io::Cursor;
 use std::path::Path;
 
 use image::ImageReader;
@@ -49,29 +49,13 @@ pub fn get_input_image(path: impl AsRef<Path>) -> anyhow::Result<(Vec<u8>, (usiz
 }
 
 pub fn get_out_mmap(out_path: &String, (width, height): (usize, usize)) -> anyhow::Result<MmapMut> {
-    // create output file with the given read+write+create+truncate options. allows overwriting
-    // files that already exist or creating ones that dont.
     let out_file = OpenOptions::new()
         .read(true)
         .write(true)
         .create(true)
         .truncate(true)
         .open(out_path)?;
-    // set length to given dimensions
     out_file.set_len((width * height * 4) as u64)?;
-    // make a mutable mmap. will be passed as the output buffer, the flushed to disk later
     let out_mmap = unsafe { MmapMut::map_mut(&out_file)? };
     Ok(out_mmap)
-}
-
-pub fn write_to_stdout(out_buf: &[u8]) -> anyhow::Result<()> {
-    let mut lock = stdout().lock();
-    lock.write_all(out_buf).and_then(|()| lock.flush())?;
-    Ok(())
-}
-
-pub unsafe fn uninit_vec(len: usize) -> Vec<u8> {
-    let mut v = Vec::with_capacity(len);
-    unsafe { v.set_len(len) };
-    v
 }
